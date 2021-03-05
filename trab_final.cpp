@@ -3,14 +3,13 @@
 #include <string.h>
 #include <sstream>
 #include <vector>
-#include <map>
 #include <dirent.h>
 
 using namespace std;
 
 unsigned char isFile =0x8;
 
-int INT_BIG = 2000000000;
+int INT_BIG = 20000000;
 
 class Instance {
     string package;
@@ -29,6 +28,55 @@ class Instance {
             }
         }
 
+	vector<int> run_tabu_search(vector<int> initial_solution, int tabu_size, int counter_limit) {
+            /*
+		Executa o metodo de tabu search para melhorar o resultado obtido pela heuristica construtiva.
+		Parametros:
+			tabu_size: numero de itens na lista tabu
+			counter_limit: numero maximo de iteracoes do algoritmo sem ocorrer nenhuma melhoria no melhor custo
+            */
+            vector<int> current_solution = initial_solution;
+            int best_cost = calc_total_cost(current_solution);
+            vector<int> tabu_list(num_locais, 0);
+            int counter = 0;
+            int curr_cost, flip_idx, best_flip_idx;
+            srand(42); //set seed
+            while (counter < counter_limit) {
+                // for (int item: current_solution) {
+                //     cout << item << ", ";
+                // }
+                // cout << endl;
+                // cout << "counter = " << counter << ", best_cost = " << best_cost << endl;
+                best_flip_idx = get_best_flip(current_solution, tabu_list);
+                current_solution[best_flip_idx] = 1 - current_solution[best_flip_idx];
+                curr_cost = calc_total_cost(current_solution);
+                // cout << "update_tabu" << endl;
+                // for (int item: tabu_list) {
+                //     cout << item << ", ";
+                // }
+                // cout << endl;
+                update_tabu_search(tabu_list);
+                tabu_list[best_flip_idx] = tabu_size;
+                if (curr_cost < best_cost) {
+                    best_cost = curr_cost;
+                    counter = 0;
+                } else {
+                    // desfaz o best flip, pois a solucao nao eh melhor do que a solucao atual
+                    current_solution[best_flip_idx] = 1 - current_solution[best_flip_idx];
+                    // escolhe um local randomico que esta aberto e fecha
+                    flip_idx = rand() % num_locais;
+                    if (get_num_instalacoes(current_solution) > 0) {
+                        while (!current_solution[flip_idx])
+                            flip_idx = rand() % num_locais;
+                        current_solution[flip_idx] = 0;
+                    }
+                    counter++;
+                }
+            }
+            cout << "tabu search, " << best_cost << endl;
+            return current_solution;
+        }
+	
         vector<int> solve_constructive_heuristic() {
             /*
             Executa um algoritmo guloso para obter um conjunto de intalacoes.
@@ -47,11 +95,11 @@ class Instance {
             }
             int new_cost = 0;
             int curr_cost = INT_BIG;
-            cout << "todos custos totais = ";
-            for (int val: location_total_cost) {
-                cout << val << ", ";
-            }
-            cout << endl;
+            // cout << "todos custos totais = ";
+            // for (int val: location_total_cost) {
+            //     cout << val << ", ";
+            // }
+            // cout << endl;
 
             vector<int> sorted_idxs = get_sorted_idxs(location_total_cost, selected_locations);
             for (int min_idx: sorted_idxs) {
@@ -64,17 +112,45 @@ class Instance {
                 }
             }
 
-            cout << "custos totais selecionados = ";
-            for (int i = 0; i < num_locais; i++) {
-                if (selected_locations[i])
-                    cout << "[" << i << ", " << location_total_cost[i] << "], ";
-            }
-            cout << endl;
-
+            // cout << "custos totais selecionados = ";
+            // for (int i = 0; i < num_locais; i++) {
+            //     if (selected_locations[i])
+            //         cout << "[" << i << ", " << location_total_cost[i] << "], ";
+            // }
+            // cout << endl;
+            cout << "constructive, " << curr_cost << endl;
             return selected_locations;
         }
 
     private:
+
+	void update_tabu_search(vector<int> &tabu_list) {
+            /**/
+            for (int i = 0; i < num_locais; i++) {
+                if (tabu_list[i] > 0)
+                    tabu_list[i]--;
+            }
+        }
+
+        int get_best_flip(vector<int> current_solution, vector<int> tabu_list) {
+            /**/
+            int min_val = INT_BIG;
+            int min_idx;
+            int curr_val;
+            for (int i = 0; i < num_locais; i++) {
+                if (tabu_list[i] == 0) {
+                    // flip valor da pos i da current solution;
+                    current_solution[i] = 1 - current_solution[i];
+                    curr_val = calc_total_cost(current_solution);
+                    if (curr_val < min_val) {
+                        min_val = curr_val;
+                        min_idx = i;
+                    }
+                    current_solution[i] = 1 - current_solution[i];
+                }
+            }
+            return min_idx;
+        }
 
         vector<string> split(string s, string delimiter) {
             /*
@@ -136,12 +212,23 @@ class Instance {
             // }
         }
 
+        int get_num_instalacoes(vector<int> selected_locations) {
+            int loc_counter = 0;
+            for (int loc: selected_locations) {
+                loc_counter += loc;
+            }
+            return loc_counter;
+        }
+
         int calc_total_cost(vector<int> selected_locations) {
             /*
             Calcula custo total da funcao que o algoritmo quer minimizar.
             O custo total é composto pela soma dos custos de abertura das instalacoes abertas mais o menor custo de
             conexao entre as instalacoes abertas e cada cliente.
             */
+            if (get_num_instalacoes(selected_locations) == 0) {
+                return INT_BIG;
+            }
             vector<int> current_min_vector(num_clientes, INT_BIG);
             int total_cost = 0;
             for (int i = 0; i < num_locais; i++) {
@@ -187,6 +274,7 @@ class Instance {
             }
             return sorted_idxs;
         }
+
 };
 
 
@@ -243,11 +331,19 @@ int main(void) {
     //     std::cout << entry.path() << std::endl;
     // }
 
-    string pkg = "BildeKrarup";
-    inst = new Instance(file_name, pkg);
-    vector<int> locations = inst->solve_constructive_heuristic();
-    for (int loc: locations)
-        cout << loc << ", ";
-    cout << endl;
+    //string pkg = "BildeKrarup";
+    //inst = new Instance(file_name, pkg);
+    vector<int> locations;
+    //for (int loc: locations)
+    //    cout << loc << ", ";
+    //cout << endl;
+	
+    for (string file: files) {
+        cout << file << endl;
+        inst = new Instance(file, "BildeKrarup");
+        locations = inst->solve_constructive_heuristic();
+        locations = inst->run_tabu_search(locations, 10, 500);
+    }
+    cout << files.size() << endl;
     return 0;
 }
