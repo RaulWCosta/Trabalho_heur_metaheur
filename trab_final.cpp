@@ -1,11 +1,14 @@
 #include <iostream>
 #include <fstream>
-#include <string>
+#include <string.h>
 #include <sstream>
 #include <vector>
 #include <map>
+#include <dirent.h>
 
 using namespace std;
+
+unsigned char isFile =0x8;
 
 int INT_BIG = 2000000000;
 
@@ -186,9 +189,53 @@ class Instance {
         }
 };
 
+
+void findDataFiles(string folder, vector <string> *files){
+
+    DIR *dir; 
+	struct dirent *diread;
+
+	if ( (dir = opendir(folder.c_str())) != nullptr){
+
+		while( (diread = readdir(dir)) != nullptr) {
+			if ( strcmp(diread->d_name, "files.lst") == 0 ){
+				//abre o arquivo "files.lst" e pega a lista de arquivos com os problemas para analisar
+				string file_path;
+				string line = "";
+				file_path = folder + "/files.lst";
+		        fstream file_obj;
+				file_obj.open(file_path, ios::in);
+		        while(getline(file_obj, line)) {
+					string full_path;
+				    full_path = folder + "/" + line;
+					files->push_back(full_path);
+				}
+
+			}else{
+				if ( (diread->d_type != isFile) 
+						&&  (strcmp(diread->d_name,".")  != 0) 
+						&&  (strcmp(diread->d_name, "..") != 0) ){
+					string aux_folder = folder +"/"+ string(diread->d_name);
+					findDataFiles( aux_folder, files);
+				}
+			}
+		}
+
+	}
+
+	return;
+}
+
+
 int main(void) {
+    string folderRoot = "./data/BildeKrarup";
+    vector<string> files;
+    
+    findDataFiles(folderRoot, &files);  
+
+
     Instance *inst;
-    string file_name = "./data/BildeKrarup/B/B1.1";
+    string file_name = files.at(0);//"./data/BildeKrarup/B/B1.1";
 
 
     // string path = "./data/BildeKrarup/";
@@ -196,11 +243,11 @@ int main(void) {
     //     std::cout << entry.path() << std::endl;
     // }
 
-    // string pkg = "BildeKrarup";
-    // inst = new Instance(file_name, pkg);
-    // vector<int> locations = inst->solve_constructive_heuristic();
-    // for (int loc: locations)
-    //     cout << loc << ", ";
-    // cout << endl;
+    string pkg = "BildeKrarup";
+    inst = new Instance(file_name, pkg);
+    vector<int> locations = inst->solve_constructive_heuristic();
+    for (int loc: locations)
+        cout << loc << ", ";
+    cout << endl;
     return 0;
 }
