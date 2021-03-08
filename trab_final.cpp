@@ -2,8 +2,8 @@
 #include <fstream>
 #include <string.h>
 #include <sstream>
-#include <vector>
 #include <dirent.h>
+#include <vector>
 
 using namespace std;
 
@@ -73,52 +73,51 @@ class Instance {
                     counter++;
                 }
             }
-            cout << "tabu search, " << best_cost << endl;
+            cout << "\ttabu search = " << best_cost << endl;
             return current_solution;
         }
-	
-        vector<int> solve_constructive_heuristic() {
+
+        vector<int> solve_constructive_heuristic(int rand_seed, float alpha) {
             /*
             Executa um algoritmo guloso para obter um conjunto de intalacoes.
             O algoritmo vai somar, para cada local, o custo de abertura e os custos de conexao
-                com cada cliente.
+                para um dado cliente.
             Em seguida esse vetor será ordenado e cada valor será iterado. Se o custo total
                 for reduzido com a abertura de uma nova intalacao, a intalacao é adicionada
                 ao vetor que será retornado.
+            Esse processo é refeito para cada cliente de maneira iterativa.
+            Parametros:
+                rand_seed: semente para gerar valores aleatorios.
+                alpha: parametro que determina a intensificacao vs diversificacao do algoritmo.
+                    alpha = 0 -> puramente gulosa
+                    alpha -> puramente aleatoria
             */
-            vector<int> location_total_cost(num_locais);
+            vector<int> location_total_cost(num_locais, 0);
             vector<int> selected_locations(num_locais, 0);
-            for (int i = 0; i < num_locais; i++) {
-                location_total_cost[i] = opening_cost_vector[i];
-                for (int val: matrix[i])
-                    location_total_cost[i] += val;
-            }
+            vector<int> sorted_idxs;
             int new_cost = 0;
             int curr_cost = INT_BIG;
-            // cout << "todos custos totais = ";
-            // for (int val: location_total_cost) {
-            //     cout << val << ", ";
-            // }
-            // cout << endl;
-
-            vector<int> sorted_idxs = get_sorted_idxs(location_total_cost, selected_locations);
-            for (int min_idx: sorted_idxs) {
-                selected_locations[min_idx] = 1;
+            int candidate_idx;
+            int k;
+            srand(rand_seed);
+            // qtd de locais candidatos para atender um dado cliente
+            int num_candidate_loc = (int) (num_locais * alpha);
+            for (int j = 0; j < num_clientes; j++) {
+                // calcula quais sao os 'best_loc_num' locais que serão considerados
+                for (int i = 0; i < num_locais; i++) {
+                    location_total_cost[i] = opening_cost_vector[i] + matrix[i][j];
+                }
+                k = (rand() % num_candidate_loc) + 1;
+                candidate_idx = get_k_min_idx(k, location_total_cost, selected_locations);
+                selected_locations[candidate_idx] = 1;
                 new_cost = calc_total_cost(selected_locations);
                 if (new_cost < curr_cost) {
                     curr_cost = new_cost;
                 } else {
-                    selected_locations[min_idx] = 0;
+                    selected_locations[candidate_idx] = 0;
                 }
             }
-
-            // cout << "custos totais selecionados = ";
-            // for (int i = 0; i < num_locais; i++) {
-            //     if (selected_locations[i])
-            //         cout << "[" << i << ", " << location_total_cost[i] << "], ";
-            // }
-            // cout << endl;
-            cout << "constructive, " << curr_cost << endl;
+            cout << "\tconstructive = " << curr_cost << endl;
             return selected_locations;
         }
 
@@ -178,7 +177,7 @@ class Instance {
             fstream file_obj;
             vector<string> words_in_line;
             file_obj.open(file_path, ios::in);
-            string line = "teste";
+            string line = "";
             getline(file_obj, line);
             getline(file_obj, line);
             words_in_line = split(line, " ");
@@ -250,29 +249,25 @@ class Instance {
             return total_cost;
         }
 
-        vector<int> get_sorted_idxs(vector<int> location_total_cost, vector<int> selected_locations) {
+        int get_k_min_idx(int k, vector<int> location_total_cost, vector<int> sel_locs) {
             /*
-            Retorna um vetor com as idxs do vetor 'location_total_cost' ordenadas de menor valor para maior valor.
-            Os indices que estao contidos no vetor 'selected_locations' sao ignorados.
+            Retorna o indice do k-esimo valor do vetor 'location_total_cost'.
+                Os valores 'sel_locs' == 1 são ignorados nessa contagem.
             */
             int min_val = INT_BIG;
             int min_idx = -1;
-            int cont_num_locais = num_locais;
-            vector<int> sorted_idxs;
-
-            while (cont_num_locais--) {
+            while (k--) {
                 min_val = INT_BIG;
                 min_idx = -1;
                 for (int j = 0; j < num_locais; j++) {
-                    if (!selected_locations[j] && location_total_cost[j] < min_val) {
+                    if (sel_locs[j] == 0 && location_total_cost[j] < min_val) {
                         min_val = location_total_cost[j];
                         min_idx = j;
                     }
                 }
-                sorted_idxs.push_back(min_idx);
-                selected_locations[min_idx] = 1;
+                sel_locs[min_idx] = 1;
             }
-            return sorted_idxs;
+            return min_idx;
         }
 
 };
@@ -280,7 +275,7 @@ class Instance {
 
 void findDataFiles(string folder, vector <string> *files){
 
-    DIR *dir; 
+    DIR *dir;
 	struct dirent *diread;
 
 	if ( (dir = opendir(folder.c_str())) != nullptr){
@@ -300,8 +295,8 @@ void findDataFiles(string folder, vector <string> *files){
 				}
 
 			}else{
-				if ( (diread->d_type != isFile) 
-						&&  (strcmp(diread->d_name,".")  != 0) 
+				if ( (diread->d_type != isFile)
+						&&  (strcmp(diread->d_name,".")  != 0)
 						&&  (strcmp(diread->d_name, "..") != 0) ){
 					string aux_folder = folder +"/"+ string(diread->d_name);
 					findDataFiles( aux_folder, files);
@@ -318,8 +313,8 @@ void findDataFiles(string folder, vector <string> *files){
 int main(void) {
     string folderRoot = "./data/BildeKrarup";
     vector<string> files;
-    
-    findDataFiles(folderRoot, &files);  
+
+    findDataFiles(folderRoot, &files);
 
 
     Instance *inst;
@@ -337,11 +332,11 @@ int main(void) {
     //for (int loc: locations)
     //    cout << loc << ", ";
     //cout << endl;
-	
+
     for (string file: files) {
         cout << file << endl;
         inst = new Instance(file, "BildeKrarup");
-        locations = inst->solve_constructive_heuristic();
+        locations = inst->solve_constructive_heuristic(42, 0.5);
         locations = inst->run_tabu_search(locations, 10, 500);
     }
     cout << files.size() << endl;
