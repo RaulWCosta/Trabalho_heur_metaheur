@@ -135,13 +135,24 @@ class Instance {
             for(int i=0; i<k; i++){
                 selected_locations = solve_constructive_heuristic(i, alpha);
 
-                int cost_best_solution = calc_total_cost(best_solutions[0]);
-                if ( (calc_total_cost(selected_locations) < cost_best_solution)
-                        || (cost_best_solution == 0) ){
-                        for(int aux=0; aux< (QTY_SOLUTIONS-1) ; aux++)
-                            best_solutions[aux+1] = best_solutions[aux];
-
-                        best_solutions[0] = selected_locations;
+                //pega o custo da "n-ésima" (QTY_SOLUTIONS) melhor solução até então
+                int cost_n_best_solution = calc_total_cost(best_solutions[QTY_SOLUTIONS-1]);
+                int cost_selected_solution = calc_total_cost(selected_locations);
+                if ( ( cost_selected_solution < cost_n_best_solution)
+                        || (cost_n_best_solution == 0) ){
+                        //posiciona a solução encontrada no vetors de best_solutions
+                        // na ordem crescente de custo
+                        int pos = QTY_SOLUTIONS-1;
+                        for(int aux = 0; aux<(QTY_SOLUTIONS-1) ; aux++){}
+                            if ( cost_selected_solution < calc_total_cost(best_solutions[aux]) ) {
+                                pos = aux;
+                                break;
+                            }     
+                        }
+                        for(int aux=QTY_SOLUTIONS-1; aux>pos; aux--)
+                            best_solutions[aux] = best_solutions[aux-1];
+                        
+                        best_solutions[pos] = selected_locations;
                 }
             }
             return best_solutions;
@@ -371,7 +382,7 @@ int main(void) {
         locations = inst->run_tabu_search(locations, 10, 500);
         cout << "\ttabu search = " << inst->calc_total_cost(locations) << endl;
         
-        best_solutions = inst->solve_grasp(0.3, 60, 1);
+        best_solutions = inst->solve_grasp(0.4, 60, 5);
         cout << "\tgrasp = " << inst->calc_total_cost(best_solutions[0]) << endl;
 
     }
