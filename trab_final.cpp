@@ -74,6 +74,8 @@ class Instance {
                 }
             }
             cout << "\ttabu search = " << best_cost << endl;
+            cout << "\ttabu search = " << calc_total_cost(current_solution) << endl;
+
             return current_solution;
         }
 
@@ -117,10 +119,65 @@ class Instance {
                     selected_locations[candidate_idx] = 0;
                 }
             }
-            cout << "\tconstructive = " << curr_cost << endl;
+            //cout << "\tconstructive = " << curr_cost << endl;
             return selected_locations;
         }
 
+        /**
+         * Retorna as melhores QTY_SOLUCTIONS considerando o número de tentativas "k"
+         * e o parâmetro de intensificação/diversificação "alpha"
+         **/
+        vector <vector<int>> solve_grasp(float alpha, int k, int QTY_SOLUTIONS) {
+
+            vector <vector<int>> best_solutions(QTY_SOLUTIONS, vector<int>(num_locais, 0));
+            vector<int> selected_locations;
+
+            for(int i=0; i<k; i++){
+                selected_locations = solve_constructive_heuristic(i, alpha);
+
+                int cost_best_solution = calc_total_cost(best_solutions[0]);
+                if ( (calc_total_cost(selected_locations) < cost_best_solution)
+                        || (cost_best_solution == 0) ){
+                        for(int aux=0; aux< (QTY_SOLUTIONS-1) ; aux++)
+                            best_solutions[aux+1] = best_solutions[aux];
+
+                        best_solutions[0] = selected_locations;
+                }
+            }
+            return best_solutions;
+        }
+
+
+
+        int calc_total_cost(vector<int> selected_locations) {
+            /*
+            Calcula custo total da funcao que o algoritmo quer minimizar.
+            O custo total é composto pela soma dos custos de abertura das instalacoes abertas mais o menor custo de
+            conexao entre as instalacoes abertas e cada cliente.
+            */
+            if (get_num_instalacoes(selected_locations) == 0) {
+                return INT_BIG;
+            }
+            vector<int> current_min_vector(num_clientes, INT_BIG);
+            int total_cost = 0;
+            for (int i = 0; i < num_locais; i++) {
+                if (selected_locations[i]) {
+                    for (int j = 0; j < num_clientes; j++) {
+                        if (matrix[i][j] < current_min_vector[j]) {
+                            current_min_vector[j] = matrix[i][j];
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < num_clientes; i++)
+                total_cost += current_min_vector[i];
+
+            for (int i = 0; i < num_locais; i++)
+                total_cost += selected_locations[i] * opening_cost_vector[i];
+
+            return total_cost;
+        }
     private:
 
 	void update_tabu_search(vector<int> &tabu_list) {
@@ -219,35 +276,6 @@ class Instance {
             return loc_counter;
         }
 
-        int calc_total_cost(vector<int> selected_locations) {
-            /*
-            Calcula custo total da funcao que o algoritmo quer minimizar.
-            O custo total é composto pela soma dos custos de abertura das instalacoes abertas mais o menor custo de
-            conexao entre as instalacoes abertas e cada cliente.
-            */
-            if (get_num_instalacoes(selected_locations) == 0) {
-                return INT_BIG;
-            }
-            vector<int> current_min_vector(num_clientes, INT_BIG);
-            int total_cost = 0;
-            for (int i = 0; i < num_locais; i++) {
-                if (selected_locations[i]) {
-                    for (int j = 0; j < num_clientes; j++) {
-                        if (matrix[i][j] < current_min_vector[j]) {
-                            current_min_vector[j] = matrix[i][j];
-                        }
-                    }
-                }
-            }
-
-            for (int i = 0; i < num_clientes; i++)
-                total_cost += current_min_vector[i];
-
-            for (int i = 0; i < num_locais; i++)
-                total_cost += selected_locations[i] * opening_cost_vector[i];
-
-            return total_cost;
-        }
 
         int get_k_min_idx(int k, vector<int> location_total_cost, vector<int> sel_locs) {
             /*
@@ -311,7 +339,7 @@ void findDataFiles(string folder, vector <string> *files){
 
 
 int main(void) {
-    string folderRoot = "./data/BildeKrarup";
+    string folderRoot = "./data/BildeKrarup/B";
     vector<string> files;
 
     findDataFiles(folderRoot, &files);
@@ -329,6 +357,7 @@ int main(void) {
     //string pkg = "BildeKrarup";
     //inst = new Instance(file_name, pkg);
     vector<int> locations;
+    vector<vector<int>> best_solutions;
     //for (int loc: locations)
     //    cout << loc << ", ";
     //cout << endl;
@@ -337,7 +366,14 @@ int main(void) {
         cout << file << endl;
         inst = new Instance(file, "BildeKrarup");
         locations = inst->solve_constructive_heuristic(42, 0.5);
+        cout << "\tconstructive = " << inst->calc_total_cost(locations) << endl;
+
         locations = inst->run_tabu_search(locations, 10, 500);
+        cout << "\ttabu search = " << inst->calc_total_cost(locations) << endl;
+        
+        best_solutions = inst->solve_grasp(0.3, 60, 1);
+        cout << "\tgrasp = " << inst->calc_total_cost(best_solutions[0]) << endl;
+
     }
     cout << files.size() << endl;
     return 0;
