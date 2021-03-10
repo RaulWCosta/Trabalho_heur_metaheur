@@ -165,6 +165,34 @@ class Instance {
             return best_solutions;
         }
 
+        void run_path_relinking(vector <vector<int>> best_solutions){
+            vector<int> symmetric_diff(num_locais, 0);
+            vector<int> new_solution;
+            int current_cost;
+            
+
+            //pega a pior solução elite como solução inicial
+            vector<int> start_solution = best_solutions[best_solutions.size()-1];
+            //a melhor solução elite é a solução guia
+            vector<int> guide_solution = best_solutions[ 0 ];
+
+            //Calcular a diferença simetrica entre a solução inicial e a solução guia
+            for(int i=0; i<num_locais; i++){
+                symmetric_diff[i] = guide_solution[i] - start_solution[i];
+            }
+            current_cost = calc_total_cost(guide_solution);
+            new_solution = guide_solution;
+            for(int i=0; i<num_locais; i++){
+                if (symmetric_diff[i]){
+                    start_solution[i] = symmetric_diff[i] + start_solution[i];
+                    if (calc_total_cost(start_solution) < current_cost){
+                        new_solution = start_solution;
+                        current_cost = calc_total_cost(new_solution);
+                    }
+                }
+            }
+        }
+
         int calc_total_cost(vector<int> selected_locations) {
             /*
             Calcula custo total da funcao que o algoritmo quer minimizar.
@@ -244,7 +272,7 @@ class Instance {
             return res;
         }
 
-        int get_bilde_krarup_opt_value(string opt_file_path) {
+        void get_bilde_krarup_opt_value(string opt_file_path) {
             /*
             Ler arquivo contendo a solução otima da instancia. Retorna o valor
                 da solução otima.
@@ -372,7 +400,7 @@ double calc_tempo_de_execucao(double *diffticks_list, int num_execs) {
 }
 
 int main(void) {
-    string folderRoot = "./data/BildeKrarup";
+    string folderRoot = "./data/BildeKrarup/C";
     vector<string> files;
 
     findDataFiles(folderRoot, &files);
@@ -427,6 +455,14 @@ int main(void) {
             end = clock();
             diffticks_list[i] = end - start;
         }
+        
+        inst->run_path_relinking(best_solutions);
+        
+        /*cout << endl;cout << endl;
+        for(int val: best_solutions[0]){
+            cout << val << ", ";
+        }*/
+        cout << endl;
         diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
         grasp_cost = inst->calc_total_cost(best_solutions[0]);
         test_file_obj << grasp_cost << ";" << diffms << ";";
