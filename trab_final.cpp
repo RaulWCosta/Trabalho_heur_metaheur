@@ -18,6 +18,9 @@ class Instance {
     vector<int> opening_cost_vector;
 
     public:
+
+        int inst_opt_value;
+
         Instance(string file_path, string pkg) {
             /*
             Inicializa objeto contendo informações de uma instancia.
@@ -25,6 +28,7 @@ class Instance {
             package = pkg;
             if (package == "BildeKrarup") {
                 init_bilde_krarup_instance(file_path);
+                get_bilde_krarup_opt_value(file_path + ".opt");
             }
         }
 
@@ -240,6 +244,22 @@ class Instance {
             return res;
         }
 
+        int get_bilde_krarup_opt_value(string opt_file_path) {
+            /*
+            Ler arquivo contendo a solução otima da instancia. Retorna o valor
+                da solução otima.
+            */
+            //lembra subtrair 1
+            fstream fs;
+            int k;
+            int q = num_clientes;
+            fs.open(opt_file_path, ios::in);
+            fs >> k;
+            while( fs >> k && q-- > 0)
+                ;
+            inst_opt_value = k;
+        }
+
         void init_bilde_krarup_instance(string file_path) {
             /*
             Le as informaçes de uma instancia do conjunto BildeKrarup recebidos em um arquivo.
@@ -253,7 +273,6 @@ class Instance {
             words_in_line = split(line, " ");
             num_locais = stoi(words_in_line.at(0));
             num_clientes = stoi(words_in_line.at(1));
-            // cout << num_locais << ", " << num_clientes << endl;
 
             matrix.resize(num_locais);
             for (int i = 0; i < num_locais; i++) {
@@ -272,13 +291,6 @@ class Instance {
                 }
                 cont++;
             }
-            // cout << "matrix obtida." << endl;
-            // for (int i = 0; i < matrix.size(); i++) {
-            //     for (int j = 0; j < matrix[i].size(); j++) {
-            //         cout << matrix[i][j] << " ";
-            //     }
-            //     cout << endl;
-            // }
         }
 
         int get_num_instalacoes(vector<int> selected_locations) {
@@ -350,6 +362,14 @@ void findDataFiles(string folder, vector <string> *files){
     return;
 }
 
+double calc_tempo_de_execucao(double *diffticks_list, int num_execs) {
+    double diffticks = 0.0;
+    for (int i = 0; i < num_execs; i++) {
+        diffticks += diffticks_list[i];
+    }
+    diffticks /= num_execs;
+    return diffticks / ( CLOCKS_PER_SEC / 1000 );
+}
 
 int main(void) {
     string folderRoot = "./data/BildeKrarup";
@@ -357,37 +377,63 @@ int main(void) {
 
     findDataFiles(folderRoot, &files);
 
-
     Instance *inst;
-    string file_name = files.at(0);//"./data/BildeKrarup/B/B1.1";
 
+    ofstream test_file_obj;
+    test_file_obj.open ("test_data.csv");
+    test_file_obj << "instance_name;num_execs;constructive_cost;constructive_exec_time (ms);";
+    test_file_obj << "tabu_cost;tabu_exec_time (ms);";
+    test_file_obj << "grasp_cost;grasp_exec_time (ms);optimal_cost\n";
 
-    // string path = "./data/BildeKrarup/";
-    // for (const auto & entry : fs::directory_iterator(path))
-    //     std::cout << entry.path() << std::endl;
-    // }
-
-    //string pkg = "BildeKrarup";
-    //inst = new Instance(file_name, pkg);
+    int constructive_cost, tabu_cost, grasp_cost;
     vector<int> locations;
     vector<vector<int>> best_solutions;
-    //for (int loc: locations)
-    //    cout << loc << ", ";
-    //cout << endl;
+
+    int num_execs = 1;
+    double diffticks_list[num_execs];
+    double diffms;
+    clock_t start, end;
 
     for (string file: files) {
         cout << file << endl;
+        test_file_obj << file << ";" << num_execs << ";";
+        // inicializa instancia
         inst = new Instance(file, "BildeKrarup");
-        locations = inst->solve_constructive_heuristic(42, 0.5);
-        cout << "\tconstructive = " << inst->calc_total_cost(locations) << endl;
 
-        locations = inst->run_tabu_search(locations, 10, 500);
-        cout << "\ttabu search = " << inst->calc_total_cost(locations) << endl;
+        for (int i = 0; i < num_execs; i++) {
+            start = clock();
+            locations = inst->solve_constructive_heuristic(42, 0.5);
+            end = clock();
+            diffticks_list[i] = end - start;
+        }
+        diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
+        constructive_cost = inst->calc_total_cost(locations);
+        test_file_obj << constructive_cost << ";" << diffms << ";";
+        // cout << "\tconstructive = " << constructive_cost << endl;
 
-        best_solutions = inst->solve_grasp(0.4, 60, 5);
-        cout << "\tgrasp = " << inst->calc_total_cost(best_solutions[0]) << endl;
+        for (int i = 0; i < num_execs; i++) {
+            start = clock();
+            locations = inst->run_tabu_search(locations, 10, 500);
+            end = clock();
+            diffticks_list[i] = end - start;
+        }
+        diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
+        tabu_cost = inst->calc_total_cost(locations);
+        test_file_obj << tabu_cost << ";" << diffms << ";";
 
+        for (int i = 0; i < num_execs; i++) {
+            start = clock();
+            best_solutions = inst->solve_grasp(0.4, 60, 5);
+            end = clock();
+            diffticks_list[i] = end - start;
+        }
+        diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
+        grasp_cost = inst->calc_total_cost(best_solutions[0]);
+        test_file_obj << grasp_cost << ";" << diffms << ";";
+
+
+        test_file_obj << inst->inst_opt_value << "\n";
     }
-    cout << files.size() << endl;
+    test_file_obj.close();
     return 0;
 }
