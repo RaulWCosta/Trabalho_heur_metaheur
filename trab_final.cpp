@@ -28,14 +28,15 @@ class Instance {
             }
         }
 
-	vector<int> run_tabu_search(vector<int> initial_solution, int tabu_size, int counter_limit) {
+        vector<int> run_tabu_search(vector<int> initial_solution, int tabu_size, int counter_limit) {
             /*
-		Executa o metodo de tabu search para melhorar o resultado obtido pela heuristica construtiva.
-		Parametros:
-			tabu_size: numero de itens na lista tabu
-			counter_limit: numero maximo de iteracoes do algoritmo sem ocorrer nenhuma melhoria no melhor custo
+            Executa o metodo de tabu search para melhorar o resultado obtido pela heuristica construtiva.
+            Parametros:
+                tabu_size: numero de itens na lista tabu
+                counter_limit: numero maximo de iteracoes do algoritmo sem ocorrer nenhuma melhoria no melhor custo
             */
             vector<int> current_solution = initial_solution;
+            vector<int> best_solution = initial_solution;
             int best_cost = calc_total_cost(current_solution);
             vector<int> tabu_list(num_locais, 0);
             int counter = 0;
@@ -59,6 +60,7 @@ class Instance {
                 tabu_list[best_flip_idx] = tabu_size;
                 if (curr_cost < best_cost) {
                     best_cost = curr_cost;
+                    best_solution = current_solution;
                     counter = 0;
                 } else {
                     // desfaz o best flip, pois a solucao nao eh melhor do que a solucao atual
@@ -73,10 +75,10 @@ class Instance {
                     counter++;
                 }
             }
-            cout << "\ttabu search = " << best_cost << endl;
-            cout << "\ttabu search = " << calc_total_cost(current_solution) << endl;
+            // cout << "\ttabu search = " << best_cost << endl;
+            //cout << "\ttabu search = " << calc_total_cost(current_solution) << endl;
 
-            return current_solution;
+            return best_solution;
         }
 
         vector<int> solve_constructive_heuristic(int rand_seed, float alpha) {
@@ -92,7 +94,7 @@ class Instance {
                 rand_seed: semente para gerar valores aleatorios.
                 alpha: parametro que determina a intensificacao vs diversificacao do algoritmo.
                     alpha = 0 -> puramente gulosa
-                    alpha -> puramente aleatoria
+                    alpha = 1 -> puramente aleatoria
             */
             vector<int> location_total_cost(num_locais, 0);
             vector<int> selected_locations(num_locais, 0);
@@ -147,19 +149,17 @@ class Instance {
                             if ( cost_selected_solution < calc_total_cost(best_solutions[aux]) ) {
                                 pos = aux;
                                 break;
-                            }     
+                            }
                         }
 
                         for(int aux=QTY_SOLUTIONS-1; aux>pos; aux--)
                             best_solutions[aux] = best_solutions[aux-1];
-                        
+
                         best_solutions[pos] = selected_locations;
                 }
             }
             return best_solutions;
         }
-
-
 
         int calc_total_cost(vector<int> selected_locations) {
             /*
@@ -190,9 +190,10 @@ class Instance {
 
             return total_cost;
         }
+
     private:
 
-	void update_tabu_search(vector<int> &tabu_list) {
+        void update_tabu_search(vector<int> &tabu_list) {
             /**/
             for (int i = 0; i < num_locais; i++) {
                 if (tabu_list[i] > 0)
@@ -316,37 +317,37 @@ class Instance {
 void findDataFiles(string folder, vector <string> *files){
 
     DIR *dir;
-	struct dirent *diread;
+    struct dirent *diread;
 
-	if ( (dir = opendir(folder.c_str())) != nullptr){
+    if ( (dir = opendir(folder.c_str())) != nullptr){
 
-		while( (diread = readdir(dir)) != nullptr) {
-			if ( strcmp(diread->d_name, "files.lst") == 0 ){
-				//abre o arquivo "files.lst" e pega a lista de arquivos com os problemas para analisar
-				string file_path;
-				string line = "";
-				file_path = folder + "/files.lst";
-		        fstream file_obj;
-				file_obj.open(file_path, ios::in);
-		        while(getline(file_obj, line)) {
-					string full_path;
-				    full_path = folder + "/" + line;
-					files->push_back(full_path);
-				}
+        while( (diread = readdir(dir)) != nullptr) {
+            if ( strcmp(diread->d_name, "files.lst") == 0 ){
+                //abre o arquivo "files.lst" e pega a lista de arquivos com os problemas para analisar
+                string file_path;
+                string line = "";
+                file_path = folder + "/files.lst";
+                fstream file_obj;
+                file_obj.open(file_path, ios::in);
+                while(getline(file_obj, line)) {
+                    string full_path;
+                    full_path = folder + "/" + line;
+                    files->push_back(full_path);
+                }
 
-			}else{
-				if ( (diread->d_type != isFile)
-						&&  (strcmp(diread->d_name,".")  != 0)
-						&&  (strcmp(diread->d_name, "..") != 0) ){
-					string aux_folder = folder +"/"+ string(diread->d_name);
-					findDataFiles( aux_folder, files);
-				}
-			}
-		}
+            }else{
+                if ( (diread->d_type != isFile)
+                &&  (strcmp(diread->d_name,".")  != 0)
+                &&  (strcmp(diread->d_name, "..") != 0) ){
+                    string aux_folder = folder +"/"+ string(diread->d_name);
+                    findDataFiles( aux_folder, files);
+                }
+            }
+        }
 
-	}
+    }
 
-	return;
+    return;
 }
 
 
@@ -382,7 +383,7 @@ int main(void) {
 
         locations = inst->run_tabu_search(locations, 10, 500);
         cout << "\ttabu search = " << inst->calc_total_cost(locations) << endl;
-        
+
         best_solutions = inst->solve_grasp(0.4, 60, 5);
         cout << "\tgrasp = " << inst->calc_total_cost(best_solutions[0]) << endl;
 
