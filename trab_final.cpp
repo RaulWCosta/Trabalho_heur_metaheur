@@ -143,12 +143,13 @@ class Instance {
                         //posiciona a solução encontrada no vetors de best_solutions
                         // na ordem crescente de custo
                         int pos = QTY_SOLUTIONS-1;
-                        for(int aux = 0; aux<(QTY_SOLUTIONS-1) ; aux++){}
+                        for(int aux = 0; aux<(QTY_SOLUTIONS-1) ; aux++){
                             if ( cost_selected_solution < calc_total_cost(best_solutions[aux]) ) {
                                 pos = aux;
                                 break;
                             }     
                         }
+
                         for(int aux=QTY_SOLUTIONS-1; aux>pos; aux--)
                             best_solutions[aux] = best_solutions[aux-1];
                         
@@ -350,7 +351,7 @@ void findDataFiles(string folder, vector <string> *files){
 
 
 int main(void) {
-    string folderRoot = "./data/BildeKrarup/B";
+    string folderRoot = "./data/BildeKrarup";
     vector<string> files;
 
     findDataFiles(folderRoot, &files);
