@@ -130,6 +130,31 @@ class Instance {
         }
 
         /**
+         * Busca em vizinhança: abertura ou fechamento de uma única localização.
+         *  Se não houver melhoria após MAX rodadas, a euristica irá parar.
+         **/
+        vector<int> solve_local_search(vector<int> selected_locations){
+            vector<int> neighbor_solution = selected_locations;
+            int MAX = 3;
+            int rounds_unchanged = 0;
+            int i = 0;
+            while(rounds_unchanged < MAX){
+                neighbor_solution[i] = neighbor_solution[i] ? 0 : 1;
+
+                if ( calc_total_cost(neighbor_solution) < calc_total_cost(selected_locations) ){
+                    selected_locations = neighbor_solution;
+                    rounds_unchanged = 0;
+                }
+                i++;
+                rounds_unchanged++;
+                if (i >= num_locais)
+                    i = 0;
+            }
+
+            return selected_locations;
+
+        }
+        /**
          * Retorna as melhores QTY_SOLUTIONS considerando o número de tentativas "k"
          * e o parâmetro de intensificação/diversificação "alpha"
          **/
@@ -140,6 +165,7 @@ class Instance {
 
             for(int i=0; i<k; i++){
                 selected_locations = solve_constructive_heuristic(i, alpha);
+                selected_locations = solve_local_search(selected_locations);
 
                 //pega o custo da "n-ésima" (QTY_SOLUTIONS) melhor solução até então
                 int cost_n_best_solution = calc_total_cost(best_solutions[QTY_SOLUTIONS-1]);
@@ -164,7 +190,16 @@ class Instance {
             }
             return best_solutions;
         }
-
+        /**
+         * O Path-relinking assume como solução guia a melhor solução encontrada até agora.
+         *   O algoritmo calcula a diferença simetrica entre a solução guia e a solução inicial,
+         *   em seguida, aplica uma a uma as movimentações (abertura/fechamento das instalações) 
+         *   dessa diferença na solução inicial e, a cada movimentação, calcula o custo da solução e,
+         *   se for uma solução melhor, ela irá se tornar a nova melhor solução.
+         *   Adaptação: Cada uma das "n-1" melhores soluções são aplicadas sobre a solução guia.
+         *   
+         * Retorna a melhor solução encontrada pela metaheurística.
+         **/
         vector<int> run_path_relinking(vector <vector<int>> best_solutions){
             vector<int> symmetric_diff(num_locais, 0);
             vector<int> new_solution = best_solutions[ 0 ];
@@ -400,6 +435,7 @@ void findDataFiles(string folder, vector <string> *files){
     return;
 }
 
+
 double calc_tempo_de_execucao(double *diffticks_list, int num_execs) {
     double diffticks = 0.0;
     for (int i = 0; i < num_execs; i++) {
@@ -408,6 +444,8 @@ double calc_tempo_de_execucao(double *diffticks_list, int num_execs) {
     diffticks /= num_execs;
     return diffticks / ( CLOCKS_PER_SEC / 1000 );
 }
+
+
 
 int main(void) {
     string folderRoot = "./data/BildeKrarup";
