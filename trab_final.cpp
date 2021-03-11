@@ -130,7 +130,7 @@ class Instance {
         }
 
         /**
-         * Retorna as melhores QTY_SOLUCTIONS considerando o número de tentativas "k"
+         * Retorna as melhores QTY_SOLUTIONS considerando o número de tentativas "k"
          * e o parâmetro de intensificação/diversificação "alpha"
          **/
         vector <vector<int>> solve_grasp(float alpha, int k, int QTY_SOLUTIONS) {
@@ -410,7 +410,7 @@ double calc_tempo_de_execucao(double *diffticks_list, int num_execs) {
 }
 
 int main(void) {
-    string folderRoot = "./data/BildeKrarup/C";
+    string folderRoot = "./data/BildeKrarup";
     vector<string> files;
 
     findDataFiles(folderRoot, &files);
@@ -421,10 +421,12 @@ int main(void) {
     test_file_obj.open ("test_data.csv");
     test_file_obj << "instance_name;num_execs;constructive_cost;constructive_exec_time (ms);";
     test_file_obj << "tabu_cost;tabu_exec_time (ms);";
-    test_file_obj << "grasp_cost;grasp_exec_time (ms);optimal_cost\n";
+    test_file_obj << "grasp_cost;grasp_exec_time (ms);";
+    test_file_obj << "pathrelinking_cost;pathrelinking_exec_time (ms);optimal_cost\n";
 
-    int constructive_cost, tabu_cost, grasp_cost;
+    int constructive_cost, tabu_cost, grasp_cost, pr_cost;
     vector<int> locations;
+    vector<int> pr_solution;
     vector<vector<int>> best_solutions;
 
     int num_execs = 1;
@@ -461,24 +463,28 @@ int main(void) {
 
         for (int i = 0; i < num_execs; i++) {
             start = clock();
-            best_solutions = inst->solve_grasp(0.4, 60, 30);
+            best_solutions = inst->solve_grasp(0.4, 200, 60);
             end = clock();
             diffticks_list[i] = end - start;
         }
-        
-        inst->run_path_relinking(best_solutions);
-        
-        /*cout << endl;cout << endl;
-        for(int val: best_solutions[0]){
-            cout << val << ", ";
-        }*/
-        cout << endl;
         diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
         grasp_cost = inst->calc_total_cost(best_solutions[0]);
         test_file_obj << grasp_cost << ";" << diffms << ";";
 
 
+        for (int i = 0; i < num_execs; i++) {
+            start = clock();
+            pr_solution = inst->run_path_relinking(best_solutions);
+            end = clock();
+            diffticks_list[i] = end - start;
+        }
+        diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
+        pr_cost = inst->calc_total_cost(pr_solution);
+        test_file_obj << pr_cost << ";" << diffms << ";";
+
         test_file_obj << inst->inst_opt_value << "\n";
+
+        cout << endl;
     }
     test_file_obj.close();
     return 0;
