@@ -146,7 +146,7 @@ class Instance {
                 int cost_selected_solution = calc_total_cost(selected_locations);
                 if ( ( cost_selected_solution < cost_n_best_solution)
                         || (cost_n_best_solution == 0) ){
-                        //posiciona a solução encontrada no vetors de best_solutions
+                        //posiciona a solução encontrada no vetor de "best_solutions"
                         // na ordem crescente de custo
                         int pos = QTY_SOLUTIONS-1;
                         for(int aux = 0; aux<(QTY_SOLUTIONS-1) ; aux++){
@@ -165,32 +165,42 @@ class Instance {
             return best_solutions;
         }
 
-        void run_path_relinking(vector <vector<int>> best_solutions){
+        vector<int> run_path_relinking(vector <vector<int>> best_solutions){
             vector<int> symmetric_diff(num_locais, 0);
-            vector<int> new_solution;
+            vector<int> new_solution = best_solutions[ 0 ];
             int current_cost;
-            
 
-            //pega a pior solução elite como solução inicial
-            vector<int> start_solution = best_solutions[best_solutions.size()-1];
             //a melhor solução elite é a solução guia
             vector<int> guide_solution = best_solutions[ 0 ];
+            vector<int> start_solution;
 
-            //Calcular a diferença simetrica entre a solução inicial e a solução guia
-            for(int i=0; i<num_locais; i++){
-                symmetric_diff[i] = guide_solution[i] - start_solution[i];
-            }
-            current_cost = calc_total_cost(guide_solution);
-            new_solution = guide_solution;
-            for(int i=0; i<num_locais; i++){
-                if (symmetric_diff[i]){
-                    start_solution[i] = symmetric_diff[i] + start_solution[i];
-                    if (calc_total_cost(start_solution) < current_cost){
-                        new_solution = start_solution;
-                        current_cost = calc_total_cost(new_solution);
+            //aplica o path-relinking nas soluções elites, disponíveis
+            //Assume como Guia a melhor solução encontrada
+            //cout << endl << "Path-relinking(melhor antes): " << calc_total_cost(guide_solution);
+            int sol = best_solutions.size()-1;
+            for(sol=1; sol<best_solutions.size(); sol++){
+            //for(int sol=best_solutions.size()-1; sol>0; sol--){
+                start_solution = best_solutions[sol];
+
+                //Calcular a diferença simetrica entre a solução inicial e a solução guia
+                for(int i=0; i<num_locais; i++){
+                    symmetric_diff[i] = guide_solution[i] - start_solution[i];
+                }
+                current_cost = calc_total_cost(guide_solution);
+                new_solution = guide_solution;
+                for(int i=0; i<num_locais; i++){
+                    if (symmetric_diff[i]){
+                        start_solution[i] = symmetric_diff[i] + start_solution[i];
+                        if (calc_total_cost(start_solution) < current_cost){
+                            new_solution = start_solution;
+                            current_cost = calc_total_cost(new_solution);
+                        }
                     }
                 }
+                guide_solution = new_solution;
             }
+            //cout << endl << "Path-relinking(melhor depois): " << current_cost;
+            return new_solution;
         }
 
         int calc_total_cost(vector<int> selected_locations) {
@@ -451,7 +461,7 @@ int main(void) {
 
         for (int i = 0; i < num_execs; i++) {
             start = clock();
-            best_solutions = inst->solve_grasp(0.4, 60, 5);
+            best_solutions = inst->solve_grasp(0.4, 60, 30);
             end = clock();
             diffticks_list[i] = end - start;
         }
