@@ -464,11 +464,11 @@ int main(void) {
 
     int constructive_cost, tabu_cost, grasp_cost, pr_cost;
     vector<int> locations;
-    vector<int> pr_solution;
+    vector<int> pr_solution, pr_solution_aux;
     vector<vector<int>> best_solutions;
 
     int num_execs = 1;
-    double diffticks_list[num_execs];
+    double diffticks_list[num_execs], diffticks_list_aux[num_execs];
     double diffms;
     clock_t start, end;
 
@@ -500,23 +500,27 @@ int main(void) {
         test_file_obj << tabu_cost << ";" << diffms << ";";
 
         for (int i = 0; i < num_execs; i++) {
+            //GRASP
             start = clock();
             best_solutions = inst->solve_grasp(0.4, 200, 60);
             end = clock();
             diffticks_list[i] = end - start;
+            
+            //PR
+            start = clock();
+            pr_solution_aux = inst->run_path_relinking(best_solutions);
+            end = clock();
+            diffticks_list_aux[i] = end - start;
+            if ( i == 0 || (inst->calc_total_cost(pr_solution_aux) < inst->calc_total_cost(pr_solution)) ){
+                pr_solution = pr_solution_aux;
+            }
+
         }
         diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
         grasp_cost = inst->calc_total_cost(best_solutions[0]);
         test_file_obj << grasp_cost << ";" << diffms << ";";
 
-
-        for (int i = 0; i < num_execs; i++) {
-            start = clock();
-            pr_solution = inst->run_path_relinking(best_solutions);
-            end = clock();
-            diffticks_list[i] = end - start;
-        }
-        diffms = calc_tempo_de_execucao(diffticks_list, num_execs);
+        diffms = calc_tempo_de_execucao(diffticks_list_aux, num_execs);
         pr_cost = inst->calc_total_cost(pr_solution);
         test_file_obj << pr_cost << ";" << diffms << ";";
 
